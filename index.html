@@ -1,296 +1,271 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Tasbih</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --accent-color: #00f2fe;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Smart Tasbih</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --lapis:#0b2a5b;
+  --lapis-deep:#071a3a;
+  --turq:#2fd1c4;
+  --gold:#e8b85c;
+  --ivory:#f5efe0;
+  --dim:rgba(245,239,224,.16);
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23f5efe0' stroke-opacity='.06' stroke-width='1'%3E%3Crect x='20' y='20' width='32' height='32'/%3E%3Crect x='20' y='20' width='32' height='32' transform='rotate(45 36 36)'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 38%, #123d80 0%, var(--lapis) 45%, var(--lapis-deep) 100%);
+  color:var(--ivory);
+  font-family:var(--sans);
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+  overflow:hidden;user-select:none;-webkit-user-select:none;
+}
 
-        body {
-            background: var(--bg-gradient);
-            color: #ffffff;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
+/* Yuqori qator */
+.top{width:100%;max-width:420px;display:flex;justify-content:space-between;align-items:center}
+.title{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.5px}
+.chips{display:flex;gap:8px}
+.chip{
+  font:500 13px var(--sans);color:var(--ivory);
+  background:rgba(245,239,224,.08);border:1px solid rgba(245,239,224,.18);
+  border-radius:999px;padding:7px 14px;cursor:pointer;
+}
+.chip b{color:var(--gold);font-weight:600}
+.chip:active{background:rgba(245,239,224,.16)}
 
-        .header {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
-            margin-bottom: 40px;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.8);
-        }
+/* Asosiy disk */
+.stage{flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+.dial{position:relative;width:min(86vw,46vh,360px);aspect-ratio:1;cursor:pointer;touch-action:manipulation}
+.dial svg{width:100%;height:100%;display:block;overflow:visible}
+.bead{fill:var(--dim);transition:fill .25s,r .25s}
+.bead.done{fill:var(--gold)}
+.bead.now{fill:var(--turq);filter:drop-shadow(0 0 7px var(--turq))}
+.pad{fill:url(#padGrad);stroke:rgba(245,239,224,.2);stroke-width:1;transition:transform .14s cubic-bezier(.3,1.6,.5,1);transform-origin:160px 160px}
+.dial.tap .pad{transform:scale(.94)}
+.dial.full .pad{stroke:var(--gold);stroke-width:2}
+.readout{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;
+}
+#count{
+  font-family:var(--serif);font-weight:400;font-size:clamp(64px,22vw,104px);line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-2px;
+  transition:transform .14s cubic-bezier(.3,1.6,.5,1);
+}
+.dial.tap #count{transform:scale(1.07)}
+.sub{margin-top:6px;font-size:13px;color:rgba(245,239,224,.6)}
 
-        /* Asosiy doira dizayni */
-        .tasbih-wrapper {
-            position: relative;
-            width: 250px;
-            height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        .glass-circle {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s;
-        }
-
-        /* Bosgandagi animatsiya */
-        .tasbih-wrapper:active .glass-circle, 
-        .tasbih-wrapper.animating .glass-circle {
-            transform: scale(0.92);
-            box-shadow: 0 0 40px rgba(0, 242, 254, 0.4);
-            border-color: rgba(0, 242, 254, 0.5);
-        }
-
-        #count {
-            font-size: 72px;
-            font-weight: 700;
-            z-index: 2;
-            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(0,242,254,0.2);
-            transition: transform 0.1s;
-        }
-
-        /* Tugmalar paneli */
-        .controls {
-            margin-top: 50px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            width: 90%;
-            z-index: 2;
-        }
-
-        button {
-            background: var(--glass-bg);
-            backdrop-filter: blur(5px);
-            border: 1px solid var(--glass-border);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        button:active {
-            transform: translateY(2px);
-            background: rgba(255,255,255,0.1);
-        }
-
-        #resetBtn { border-color: rgba(255, 89, 94, 0.4); }
-        #voiceBtn { border-color: rgba(138, 201, 38, 0.4); }
-        #sensorBtn { border-color: rgba(25, 130, 196, 0.4); }
-
-        #status {
-            margin-top: 25px;
-            font-size: 13px;
-            color: rgba(255,255,255,0.5);
-            text-align: center;
-            background: rgba(0,0,0,0.2);
-            padding: 8px 20px;
-            border-radius: 20px;
-        }
-
-        /* SVG Animatsiya */
-        .ring {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
-        }
-        .ring circle {
-            fill: none;
-            stroke: url(#grad);
-            stroke-width: 4;
-            stroke-dasharray: 750;
-            stroke-dashoffset: 750;
-            transition: stroke-dashoffset 0.1s ease-out;
-        }
-    </style>
+/* Pastki panel */
+.status{min-height:18px;font-size:13px;color:rgba(245,239,224,.62);margin-bottom:14px;text-align:center}
+.dock{
+  display:flex;gap:6px;padding:8px;border-radius:26px;
+  background:rgba(7,26,58,.55);border:1px solid rgba(245,239,224,.14);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.tool{
+  width:92px;padding:10px 0 9px;border:0;border-radius:18px;background:transparent;color:var(--ivory);
+  display:flex;flex-direction:column;align-items:center;gap:6px;font:500 12px var(--sans);cursor:pointer;
+  transition:background .2s;
+}
+.tool svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tool:active{background:rgba(245,239,224,.1)}
+.tool.on{background:rgba(47,209,196,.16);color:var(--turq)}
+.tool:focus-visible,.chip:focus-visible{outline:2px solid var(--turq);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
 </head>
 <body>
 
-    <div class="header">Zikr</div>
+<div class="top">
+  <div class="title">Zikr</div>
+  <div class="chips">
+    <button class="chip" id="roundChip">Aylana: <b id="rounds">0</b></button>
+    <button class="chip" id="targetChip">Maqsad: <b id="target">33</b></button>
+  </div>
+</div>
 
-    <div class="tasbih-wrapper" id="tasbihBtn">
-        <svg class="ring" viewBox="0 0 250 250">
-            <defs>
-                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#4facfe" />
-                    <stop offset="100%" stop-color="#00f2fe" />
-                </linearGradient>
-            </defs>
-            <circle cx="125" cy="125" r="120" id="progressCircle"></circle>
-        </svg>
-        <div class="glass-circle"></div>
-        <div id="count">0</div>
+<div class="stage">
+  <div class="dial" id="dial" role="button" aria-label="Sanash">
+    <svg viewBox="0 0 320 320" aria-hidden="true">
+      <defs>
+        <radialGradient id="padGrad" cx="50%" cy="38%" r="70%">
+          <stop offset="0%" stop-color="#1c4f9a"/>
+          <stop offset="100%" stop-color="#0a2352"/>
+        </radialGradient>
+      </defs>
+      <g id="beads"></g>
+      <circle class="pad" cx="160" cy="160" r="106"/>
+    </svg>
+    <div class="readout">
+      <div id="count">0</div>
+      <div class="sub" id="sub">0 / 33</div>
     </div>
+  </div>
+</div>
 
-    <div class="controls">
-        <button id="resetBtn">🔄 Nolga</button>
-        <button id="voiceBtn">🎤 Ovoz</button>
-        <button id="sensorBtn">📱 Harakat</button>
-    </div>
-    
-    <div id="status">Ekranni suring, silkiting yoki bosing.</div>
+<div class="status" id="status">Ekranga teging, suring yoki silkiting</div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand(); 
-        tg.setHeaderColor('#0f2027'); 
-        tg.setBackgroundColor('#0f2027');
+<div class="dock">
+  <button class="tool" id="resetBtn">
+    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Nolga
+  </button>
+  <button class="tool" id="voiceBtn">
+    <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Ovoz</span>
+  </button>
+  <button class="tool" id="sensorBtn">
+    <svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 8v8M20 8v8"/></svg><span>Harakat</span>
+  </button>
+</div>
 
-        let count = 0;
-        const countDisplay = document.getElementById('count');
-        const tasbihBtn = document.getElementById('tasbihBtn');
-        const statusDisplay = document.getElementById('status');
-        const progressCircle = document.getElementById('progressCircle');
-        
-        const circleLength = 750; // SVG circle length
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) {
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor('#0b2a5b'); tg.setBackgroundColor('#071a3a'); } catch(e){}
+}
+const hap = (kind, style) => {
+  try {
+    if (!tg || !tg.HapticFeedback) return;
+    kind === 'n' ? tg.HapticFeedback.notificationOccurred(style) : tg.HapticFeedback.impactOccurred(style);
+  } catch(e){}
+};
 
-        function incrementCounter(source) {
-            count++;
-            countDisplay.innerText = count;
-            
-            // Animatsiya qo'shish
-            tasbihBtn.classList.add('animating');
-            setTimeout(() => tasbihBtn.classList.remove('animating'), 150);
+const $ = id => document.getElementById(id);
+const dial = $('dial'), beadsG = $('beads');
+const TARGETS = [33, 99, 100];
+let count = 0, target = 33, beadEls = [];
 
-            // Progress bar (33 ta zikr uchun bitta to'la aylana)
-            let progress = (count % 33) / 33;
-            if(count % 33 === 0) progress = 1; // 33 da to'ladi
-            progressCircle.style.strokeDashoffset = circleLength - (circleLength * progress);
+// Saqlash (xato bo'lsa jim o'tadi)
+try {
+  const s = JSON.parse(localStorage.getItem('tasbih') || '{}');
+  if (s.count) count = s.count;
+  if (TARGETS.includes(s.target)) target = s.target;
+} catch(e){}
+const save = () => { try { localStorage.setItem('tasbih', JSON.stringify({count, target})); } catch(e){} };
 
-            // Telegram haptic feedback
-            if (tg.HapticFeedback) {
-                if (count % 33 === 0) {
-                    tg.HapticFeedback.notificationOccurred('success'); // 33 tasida uzun vibratsiya
-                } else {
-                    tg.HapticFeedback.impactOccurred('light'); // Oddiy bosganda qisqa vibratsiya
-                }
-            }
+function buildBeads() {
+  beadsG.innerHTML = ''; beadEls = [];
+  const R = 140, c = 160, circ = 2 * Math.PI * R;
+  const r = Math.min(7.5, circ / target / 2.7);
+  for (let i = 0; i < target; i++) {
+    const a = (i / target) * 2 * Math.PI - Math.PI / 2;
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    el.setAttribute('cx', c + R * Math.cos(a));
+    el.setAttribute('cy', c + R * Math.sin(a));
+    el.setAttribute('r', r);
+    el.dataset.r = r;
+    el.setAttribute('class', 'bead');
+    beadsG.appendChild(el); beadEls.push(el);
+  }
+}
 
-            statusDisplay.innerText = `${source} orqali`;
-        }
+function render() {
+  const inCycle = count === 0 ? 0 : ((count - 1) % target) + 1;
+  $('count').textContent = count;
+  $('sub').textContent = inCycle + ' / ' + target;
+  $('rounds').textContent = Math.floor(count / target);
+  $('target').textContent = target;
+  dial.classList.toggle('full', count > 0 && count % target === 0);
+  beadEls.forEach((el, i) => {
+    el.setAttribute('class', 'bead' + (i < inCycle - 1 ? ' done' : '') + (i === inCycle - 1 ? ' now' : '') + (inCycle === target && i === target - 1 ? ' done' : ''));
+    el.setAttribute('r', i === inCycle - 1 ? el.dataset.r * 1.35 : el.dataset.r);
+  });
+}
 
-        // Asosiy tugmaga bosish
-        tasbihBtn.addEventListener('click', () => incrementCounter('Tegish'));
+function say(t) { $('status').textContent = t; }
 
-        // Reset
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            count = 0;
-            countDisplay.innerText = count;
-            progressCircle.style.strokeDashoffset = circleLength;
-            tg.HapticFeedback.impactOccurred('heavy');
-        });
+function increment(source) {
+  count++;
+  dial.classList.add('tap');
+  setTimeout(() => dial.classList.remove('tap'), 140);
+  if (count % target === 0) { hap('n', 'success'); say('Aylana to\'ldi'); }
+  else { hap('i', 'light'); say(source + ' orqali'); }
+  render(); save();
+}
 
-        // Swipe
-        let touchStartY = 0;
-        document.body.addEventListener('touchstart', (e) => {
-            touchStartY = e.changedTouches[0].screenY;
-        });
-        document.body.addEventListener('touchend', (e) => {
-            let touchEndY = e.changedTouches[0].screenY;
-            if (Math.abs(touchEndY - touchStartY) > 50) {
-                incrementCounter('Surish');
-            }
-        });
+buildBeads(); render();
 
-        // Sensorlar (Shake & Back tap)
-        document.getElementById('sensorBtn').addEventListener('click', () => {
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') startMotionSensors();
-                    }).catch(console.error);
-            } else {
-                startMotionSensors();
-            }
-            document.getElementById('sensorBtn').style.opacity = '0.5';
-        });
+// Bosish
+dial.addEventListener('click', () => increment('Tegish'));
 
-        let lastShakeTime = 0;
-        function startMotionSensors() {
-            window.addEventListener('devicemotion', (e) => {
-                let acc = e.acceleration || e.accelerationIncludingGravity;
-                if (!acc) return;
-                let currentTime = new Date().getTime();
-                if ((currentTime - lastShakeTime) > 300) {
-                    if (Math.abs(acc.z) > 12) {
-                        incrementCounter('Orqaga chertish');
-                        lastShakeTime = currentTime;
-                    } else if (Math.abs(acc.x) > 15 || Math.abs(acc.y) > 15) {
-                        incrementCounter('Silkitish');
-                        lastShakeTime = currentTime;
-                    }
-                }
-            });
-            statusDisplay.innerText = "Harakat datchigi faol";
-        }
+// Nolga
+$('resetBtn').addEventListener('click', () => {
+  count = 0; hap('i', 'heavy'); say('Hisob nolga qaytdi'); render(); save();
+});
 
-        // Voice API
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.lang = 'uz-UZ';
-            document.getElementById('voiceBtn').addEventListener('click', () => {
-                try {
-                    recognition.start();
-                    document.getElementById('voiceBtn').innerHTML = '🔴 Eshitilmoqda';
-                    document.getElementById('voiceBtn').style.borderColor = '#ff595e';
-                } catch(e) { recognition.stop(); }
-            });
-            recognition.onresult = (event) => {
-                const text = event.results[event.results.length - 1][0].transcript;
-                if(text.trim().length > 0) incrementCounter('Ovoz');
-            };
-        } else {
-            document.getElementById('voiceBtn').style.display = 'none';
-        }
+// Maqsadni almashtirish
+$('targetChip').addEventListener('click', () => {
+  target = TARGETS[(TARGETS.indexOf(target) + 1) % TARGETS.length];
+  buildBeads(); render(); save(); hap('i', 'medium');
+  say('Maqsad: ' + target + ' ta');
+});
+$('roundChip').addEventListener('click', () => say('Tugallangan aylanalar: ' + Math.floor(count / target)));
 
-        // Volume keys (agar qurilma ruxsat bersa)
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown') {
-                incrementCounter('Tugma');
-                e.preventDefault();
-            }
-        });
-    </script>
+// Surish
+let y0 = 0;
+document.body.addEventListener('touchstart', e => { y0 = e.changedTouches[0].screenY; }, {passive:true});
+document.body.addEventListener('touchend', e => {
+  if (Math.abs(e.changedTouches[0].screenY - y0) > 50) increment('Surish');
+}, {passive:true});
+
+// Harakat datchigi
+let motionOn = false, lastShake = 0;
+function onMotion(e) {
+  const a = e.acceleration || e.accelerationIncludingGravity;
+  if (!a) return;
+  const now = Date.now();
+  if (now - lastShake < 300) return;
+  if (Math.abs(a.z) > 12) { increment('Orqaga chertish'); lastShake = now; }
+  else if (Math.abs(a.x) > 15 || Math.abs(a.y) > 15) { increment('Silkitish'); lastShake = now; }
+}
+function setMotion(on) {
+  motionOn = on;
+  $('sensorBtn').classList.toggle('on', on);
+  window[on ? 'addEventListener' : 'removeEventListener']('devicemotion', onMotion);
+  say(on ? 'Harakat datchigi faol' : 'Harakat datchigi o\'chirildi');
+}
+$('sensorBtn').addEventListener('click', () => {
+  if (motionOn) return setMotion(false);
+  if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(s => { if (s === 'granted') setMotion(true); }).catch(console.error);
+  } else setMotion(true);
+});
+
+// Ovoz
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SR) {
+  const rec = new SR();
+  let voiceOn = false;
+  rec.continuous = true; rec.lang = 'uz-UZ';
+  $('voiceBtn').addEventListener('click', () => {
+    voiceOn = !voiceOn;
+    $('voiceBtn').classList.toggle('on', voiceOn);
+    $('voiceBtn').querySelector('span').textContent = voiceOn ? 'Eshitilmoqda' : 'Ovoz';
+    try { voiceOn ? rec.start() : rec.stop(); } catch(e){}
+  });
+  rec.onresult = ev => {
+    const t = ev.results[ev.results.length - 1][0].transcript;
+    if (t.trim()) increment('Ovoz');
+  };
+  rec.onend = () => { if (voiceOn) { try { rec.start(); } catch(e){} } };
+} else {
+  $('voiceBtn').style.display = 'none';
+}
+
+// Ovoz balandligi tugmalari
+document.addEventListener('keydown', e => {
+  if (e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown') { increment('Tugma'); e.preventDefault(); }
+});
+</script>
 </body>
 </html>
