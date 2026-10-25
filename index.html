@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <!-- Ekranni yaqinlashtirishni taqiqlash (tasbeh uchun muhim) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Tasbih</title>
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #1c1c1d;
+            --tg-theme-text-color: #ffffff;
+            --tg-theme-button-color: #3390ec;
+        }
+        body {
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #counter-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #2a2a2b, #151515);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(255,255,255,0.05);
+            margin-bottom: 40px;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        #count {
+            font-size: 80px;
+            font-weight: bold;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            padding: 0 20px;
+        }
+        button {
+            background-color: var(--tg-theme-button-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+        button:active {
+            opacity: 0.8;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+            text-align: center;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="counter-container">
+        <div id="count">0</div>
+    </div>
+
+    <div class="controls">
+        <button id="resetBtn">Nolga tushirish</button>
+        <button id="voiceBtn">🎤 Ovozli sanash</button>
+        <button id="sensorBtn">📱 Sensorlarni yoqish</button>
+    </div>
+    
+    <div id="status">Ekranni suring, telefonni silkiting yoki orqasiga cherting.</div>
+
+    <script>
+        // Telegram Web App ob'ektini initsializatsiya qilish
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Ilovani to'liq ekranga ochish
+
+        let count = 0;
+        const countDisplay = document.getElementById('count');
+        const counterContainer = document.getElementById('counter-container');
+        const statusDisplay = document.getElementById('status');
+        
+        // --- 1. ASOSIY SANASH FUNKSIYASI ---
+        function incrementCounter(source) {
+            count++;
+            countDisplay.innerText = count;
+            
+            // Telegram haptic feedback (vibratsiya)
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('medium');
+            }
+
+            // Kichik animatsiya
+            counterContainer.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                counterContainer.style.transform = 'scale(1)';
+            }, 100);
+
+            statusDisplay.innerText = `So'nggi harakat: ${source}`;
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            count = 0;
+            countDisplay.innerText = count;
+            tg.HapticFeedback.impactOccurred('heavy');
+        });
+
+        // --- 2. EKRANNI SURISH (SWIPE) ---
+        let touchStartY = 0;
+        document.body.addEventListener('touchstart', (e) => {
+            touchStartY = e.changedTouches[0].screenY;
+        });
+
+        document.body.addEventListener('touchend', (e) => {
+            let touchEndY = e.changedTouches[0].screenY;
+            // Agar barmoq yuqoridan pastga yoki pastdan yuqoriga 40px dan ko'p surilsa
+            if (Math.abs(touchEndY - touchStartY) > 40) {
+                incrementCounter('Ekranni surish');
+            }
+        });
+
+        // Ekranga shunchaki bosganda ham ishlashi uchun
+        counterContainer.addEventListener('click', () => incrementCounter('Tegish'));
+
+        // --- 3. TELEFONNI HARAKATLANTIRISH (Shake) VA ORQAGA CHERTISH (Back Tap) ---
+        document.getElementById('sensorBtn').addEventListener('click', () => {
+            // iOS 13+ da sensorlar uchun ruxsat so'rash kerak
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            startMotionSensors();
+                        } else {
+                            statusDisplay.innerText = "Sensorlarga ruxsat berilmadi.";
+                        }
+                    }).catch(console.error);
+            } else {
+                startMotionSensors(); // Android va eski iOS uchun
+            }
+            document.getElementById('sensorBtn').style.display = 'none';
+        });
+
+        let lastShakeTime = 0;
+        function startMotionSensors() {
+            window.addEventListener('devicemotion', (e) => {
+                let acc = e.acceleration || e.accelerationIncludingGravity;
+                if (!acc) return;
+
+                let currentTime = new Date().getTime();
+                if ((currentTime - lastShakeTime) > 300) { // 0.3 soniya pauza
+                    
+                    // Z o'qidagi keskin o'zgarish telefon orqasiga chertishni (Back Tap) bildiradi
+                    if (Math.abs(acc.z) > 12) {
+                        incrementCounter('Orqaga chertish (Z-axis)');
+                        lastShakeTime = currentTime;
+                    } 
+                    // X yoki Y o'qidagi kuchli silkitish (Shake)
+                    else if (Math.abs(acc.x) > 15 || Math.abs(acc.y) > 15) {
+                        incrementCounter('Silkitish');
+                        lastShakeTime = currentTime;
+                    }
+                }
+            });
+            statusDisplay.innerText = "Sensorlar ishga tushdi.";
+        }
+
+        // --- 4. OVOZLI BUYRUQ (Voice Command) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'uz-UZ'; // O'zbek tili, arabcha zikrlar uchun 'ar-SA' qo'yish mumkin
+
+            document.getElementById('voiceBtn').addEventListener('click', () => {
+                try {
+                    recognition.start();
+                    document.getElementById('voiceBtn').style.backgroundColor = '#ff595e';
+                    document.getElementById('voiceBtn').innerText = '🎤 Eshitilmoqda...';
+                    statusDisplay.innerText = "Zikr ayting (Subhanalloh, Alhamdulillah)...";
+                } catch (e) {
+                    recognition.stop();
+                }
+            });
+
+            recognition.onresult = (event) => {
+                const result = event.results[event.results.length - 1][0].transcript.toLowerCase();
+                // Har safar so'z eshitilganda (nima deyishidan qat'iy nazar) bittaga oshiradi
+                if (result.trim().length > 0) {
+                    incrementCounter('Ovoz: ' + result);
+                }
+            };
+            
+            recognition.onend = () => {
+                document.getElementById('voiceBtn').style.backgroundColor = 'var(--tg-theme-button-color)';
+                document.getElementById('voiceBtn').innerText = '🎤 Ovozli sanash';
+            };
+        } else {
+            document.getElementById('voiceBtn').style.display = 'none';
+        }
+
+        // --- 5. OVOZ BALANDLIGI TUGMALARI (Volume Buttons Workaround) ---
+        // Eslatma: Web muhitda OS bu tugmalarni to'sib qo'yishi mumkin. 
+        // Ishlash ehtimoli Android qurilmalarda ko'proq.
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'AudioVolumeUp' || e.key === 'AudioVolumeDown' || e.keyCode === 38 || e.keyCode === 40) {
+                incrementCounter('Ovoz tugmasi');
+                e.preventDefault(); // Ovoz o'zgarishini to'xtatishga urinish
+            }
+        });
+    </script>
+</body>
+</html>
